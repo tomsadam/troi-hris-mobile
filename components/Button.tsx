@@ -1,5 +1,5 @@
 import React, { ReactNode } from "react";
-import { StyleSheet, Pressable, ViewStyle, StyleProp } from "react-native";
+import { StyleSheet, Pressable, ViewStyle, StyleProp, ActivityIndicator } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -9,13 +9,14 @@ import Animated, {
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { BorderRadius, Spacing } from "@/constants/theme";
+import { BorderRadius, Spacing, Colors } from "@/constants/theme";
 
 interface ButtonProps {
   onPress?: () => void;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  loading?: boolean;
 }
 
 const springConfig: WithSpringConfig = {
@@ -33,48 +34,56 @@ export function Button({
   children,
   style,
   disabled = false,
+  loading = false,
 }: ButtonProps) {
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
   const scale = useSharedValue(1);
+  const colors = isDark ? Colors.dark : Colors.light;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
   const handlePressIn = () => {
-    if (!disabled) {
+    if (!disabled && !loading) {
       scale.value = withSpring(0.98, springConfig);
     }
   };
 
   const handlePressOut = () => {
-    if (!disabled) {
+    if (!disabled && !loading) {
       scale.value = withSpring(1, springConfig);
     }
   };
 
+  const isDisabled = disabled || loading;
+
   return (
     <AnimatedPressable
-      onPress={disabled ? undefined : onPress}
+      onPress={isDisabled ? undefined : onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      disabled={disabled}
+      disabled={isDisabled}
       style={[
         styles.button,
         {
-          backgroundColor: theme.link,
-          opacity: disabled ? 0.5 : 1,
+          backgroundColor: colors.primary,
+          opacity: isDisabled ? 0.6 : 1,
         },
         style,
         animatedStyle,
       ]}
     >
-      <ThemedText
-        type="body"
-        style={[styles.buttonText, { color: theme.buttonText }]}
-      >
-        {children}
-      </ThemedText>
+      {loading ? (
+        <ActivityIndicator color="#FFFFFF" size="small" />
+      ) : (
+        <ThemedText
+          type="body"
+          style={[styles.buttonText, { color: "#FFFFFF" }]}
+        >
+          {children}
+        </ThemedText>
+      )}
     </AnimatedPressable>
   );
 }
@@ -82,7 +91,7 @@ export function Button({
 const styles = StyleSheet.create({
   button: {
     height: Spacing.buttonHeight,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
   },

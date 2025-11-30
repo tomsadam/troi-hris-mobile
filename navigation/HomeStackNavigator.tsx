@@ -1,14 +1,14 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "@/screens/HomeScreen";
-import DetailScreen from "@/screens/DetailScreen";
+import HistoryScreen from "@/screens/HistoryScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
 
 export type HomeStackParamList = {
   Home: undefined;
-  Detail: undefined;
+  History: undefined;
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -26,13 +26,13 @@ export default function HomeStackNavigator() {
         name="Home"
         component={HomeScreen}
         options={{
-          headerTitle: () => <HeaderTitle title="My App" />,
+          headerTitle: () => <HeaderTitle title="Attendance" />,
         }}
       />
       <Stack.Screen
-        name="Detail"
-        component={DetailScreen}
-        options={{ headerTitle: "Detail" }}
+        name="History"
+        component={HistoryScreen}
+        options={{ headerTitle: "Attendance History" }}
       />
     </Stack.Navigator>
   );
