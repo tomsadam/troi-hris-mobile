@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { attendanceApi, AttendanceRecord } from "@/services/api";
+import { attendanceApi, AttendanceResponse } from "@/services/api";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -13,7 +13,7 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export default function HistoryScreen() {
   const { theme, isDark } = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [history, setHistory] = useState<AttendanceRecord[]>([]);
+  const [history, setHistory] = useState<AttendanceResponse[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [attendedDates, setAttendedDates] = useState<Set<number>>(new Set());
 
@@ -25,7 +25,7 @@ export default function HistoryScreen() {
       setHistory(historyRes);
       const dates = new Set(
         historyRes
-          .filter((r) => r.checkIn)
+          .filter((r) => r.checkInTime)
           .map((r) => new Date(r.date).getDate())
       );
       setAttendedDates(dates);
@@ -183,7 +183,7 @@ export default function HistoryScreen() {
               <View style={styles.historyTimesRow}>
                 <View style={styles.historyTimeItem}>
                   <ThemedText type="body" style={{ fontWeight: "600" }}>
-                    {record.checkIn || "-"}
+                    {formatTime(record.checkInTime)}
                   </ThemedText>
                   <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 11 }}>
                     Check In
@@ -191,7 +191,7 @@ export default function HistoryScreen() {
                 </View>
                 <View style={styles.historyTimeItem}>
                   <ThemedText type="body" style={{ fontWeight: "600" }}>
-                    {record.checkOut || "-"}
+                    {formatTime(record.checkOutTime)}
                   </ThemedText>
                   <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 11 }}>
                     Check out
@@ -224,6 +224,15 @@ export default function HistoryScreen() {
     </ScreenScrollView>
   );
 }
+
+const formatTime = (isoString?: string | null): string => {
+  if (!isoString) return "-";
+  const date = new Date(isoString);
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 const styles = StyleSheet.create({
   calendarContainer: {

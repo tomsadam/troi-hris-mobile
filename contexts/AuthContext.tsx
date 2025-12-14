@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { authApi, LoginResponse } from "@/services/api";
+// Import setUnauthorizedHandler dari api.ts
+import { authApi, LoginResponse, setUnauthorizedHandler } from "@/services/api";
 
 interface AuthContextType {
   user: LoginResponse | null;
@@ -15,7 +16,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<LoginResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fungsi logout didefinisikan sebelum useEffect
+  const logout = async () => {
+    try {
+        await authApi.logout();
+    } catch (e) {
+        console.log("Error during logout api call", e);
+    } finally {
+        // Penting: Set state null agar UI otomatis pindah ke Login Screen
+        setUser(null); 
+    }
+  };
+
   useEffect(() => {
+    // 1. Daftarkan fungsi logout ke interceptor API
+    // Ketika API menerima 401, fungsi logout ini akan dijalankan
+    setUnauthorizedHandler(logout);
+
+    // 2. Cek status auth saat ini
     checkAuthStatus();
   }, []);
 
@@ -28,6 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Auth check error:", error);
+      // Opsional: jika check auth gagal total, bisa logout
+      // logout(); 
     } finally {
       setIsLoading(false);
     }
@@ -36,11 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     const response = await authApi.login({ username, password });
     setUser(response);
-  };
-
-  const logout = async () => {
-    await authApi.logout();
-    setUser(null);
   };
 
   return (

@@ -7,7 +7,7 @@ import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { attendanceApi, AttendanceRecord, AttendanceStats } from "@/services/api";
+import { attendanceApi, AttendanceResponse, AttendanceStats } from "@/services/api";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { HomeStackParamList } from "@/navigation/HomeStackNavigator";
 
@@ -18,12 +18,9 @@ export default function HomeScreen() {
   const { theme, isDark } = useTheme();
   const { user } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [todayStatus, setTodayStatus] = useState<{ checkIn: string | null; checkOut: string | null }>({
-    checkIn: null,
-    checkOut: null,
-  });
+  const [todayStatus, setTodayStatus] = useState<AttendanceResponse>();
   const [stats, setStats] = useState<AttendanceStats | null>(null);
-  const [recentHistory, setRecentHistory] = useState<AttendanceRecord[]>([]);
+  const [recentHistory, setRecentHistory] = useState<AttendanceResponse[]>([]);
 
   const colors = isDark ? Colors.dark : Colors.light;
 
@@ -130,12 +127,12 @@ export default function HomeScreen() {
                 Check In
               </ThemedText>
               <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 12 }}>
-                {todayStatus.checkIn ? "On Time" : "Not Yet"}
+                {todayStatus?.checkInTime ? "On Time" : "Not Yet"}
               </ThemedText>
             </View>
           </View>
           <ThemedText type="h2" style={[styles.statusTime, { color: colors.primary }]}>
-            {todayStatus.checkIn || "--:--"}
+            {formatTime(todayStatus?.checkInTime) || "--:--"}
           </ThemedText>
         </View>
 
@@ -149,15 +146,15 @@ export default function HomeScreen() {
                 Check Out
               </ThemedText>
               <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 12 }}>
-                {todayStatus.checkOut ? "Completed" : "Not Yet"}
+                {todayStatus?.checkOutTime ? "Completed" : "Not Yet"}
               </ThemedText>
             </View>
           </View>
           <ThemedText
             type="h2"
-            style={[styles.statusTime, { color: todayStatus.checkOut ? colors.primary : colors.textSecondary }]}
+            style={[styles.statusTime, { color: todayStatus?.checkOutTime ? colors.primary : colors.textSecondary }]}
           >
-            {todayStatus.checkOut || "17:00"}
+            {formatTime(todayStatus?.checkOutTime) || "--:--"}
           </ThemedText>
         </View>
       </View>
@@ -171,10 +168,10 @@ export default function HomeScreen() {
             Absence
           </ThemedText>
           <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 11 }}>
-            {stats?.month || "November"}
+            {stats?.monthYear}
           </ThemedText>
           <View style={styles.statsValueRow}>
-            <ThemedText type="h2">{stats?.absenceDays || 0}</ThemedText>
+            <ThemedText type="h2">{stats?.daysAbsent || 0}</ThemedText>
             <ThemedText type="small" style={{ color: colors.textSecondary, marginLeft: 4 }}>
               Day
             </ThemedText>
@@ -189,10 +186,10 @@ export default function HomeScreen() {
             Total Attended
           </ThemedText>
           <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 11 }}>
-            {stats?.month || "November"}
+            {stats?.monthYear}
           </ThemedText>
           <View style={styles.statsValueRow}>
-            <ThemedText type="h2">{stats?.totalAttended || 0}</ThemedText>
+            <ThemedText type="h2">{stats?.daysPresent || 0}</ThemedText>
             <ThemedText type="small" style={{ color: colors.textSecondary, marginLeft: 4 }}>
               Day
             </ThemedText>
@@ -228,7 +225,7 @@ export default function HomeScreen() {
               <View style={styles.historyTimesRow}>
                 <View style={styles.historyTimeItem}>
                   <ThemedText type="body" style={{ fontWeight: "600" }}>
-                    {record.checkIn || "-"}
+                    {formatTime(record.checkInTime)}
                   </ThemedText>
                   <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 11 }}>
                     Check In
@@ -236,7 +233,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.historyTimeItem}>
                   <ThemedText type="body" style={{ fontWeight: "600" }}>
-                    {record.checkOut || "-"}
+                    {formatTime(record.checkOutTime)}
                   </ThemedText>
                   <ThemedText type="small" style={{ color: colors.textSecondary, fontSize: 11 }}>
                     Check out
@@ -269,6 +266,17 @@ export default function HomeScreen() {
     </ScreenScrollView>
   );
 }
+
+const formatTime = (isoString?: string | null): string => {
+  if (!isoString) return "-";
+  const date = new Date(isoString);
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+
 
 const styles = StyleSheet.create({
   header: {

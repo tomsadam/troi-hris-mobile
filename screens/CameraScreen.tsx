@@ -8,13 +8,13 @@ import {
   Platform,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Location from "expo-location";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
-import { Button } from "@/components/Button";
 import { attendanceApi } from "@/services/api";
-import { Spacing, BorderRadius, Colors } from "@/constants/theme";
+import { Spacing, Colors } from "@/constants/theme";
 
 type CameraScreenRouteProp = RouteProp<{ Camera: { type: "clockIn" | "clockOut" } }, "Camera">;
 
@@ -23,9 +23,13 @@ export default function CameraScreen() {
   const route = useRoute<CameraScreenRouteProp>();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
+  
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [verificationState, setVerificationState] = useState<"scanning" | "verifying" | "success" | "failed">("scanning");
+  
   const clockType = route.params?.type || "clockIn";
 
   useEffect(() => {
@@ -44,36 +48,93 @@ export default function CameraScreen() {
     setVerificationState("verifying");
 
     try {
+      // 1. Dapatkan Lokasi (Latitude dan Longitude)
+      if (!locationPermission?.granted) {
+        const { status } = await requestLocationPermission();
+        if (status !== 'granted') {
+          Alert.alert("Lokasi Diperlukan", "Akses lokasi diperlukan untuk mencatat absensi.");
+          setVerificationState("scanning");
+          setIsProcessing(false);
+          return;
+        }
+      }
+      
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const latitude = location.coords.latitude;
+      const longitude = location.coords.longitude;
+
+      // 2. Ambil Foto (Hanya URI, Tanpa Base64)
+      if (!cameraRef.current) {
+        throw new Error("Camera not initialized.");
+      }
+      
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.5, // Kompresi gambar
+        skipProcessing: true,
+        // base64: true <--- DIHAPUS: Tidak perlu base64 string
+      });
+
+      if (!photo || !photo.uri) {
+        throw new Error("Failed to capture photo.");
+      }
+      
+      // 3. Susun FormData (Multipart)
+      const formData = new FormData();
+
+      // Field string (sesuai field di Java Class 'AttendanceRequest')
+      formData.append("latitude", latitude.toString());
+      formData.append("longitude", longitude.toString());
+
+      // Field file
+      const fileName = photo.uri.split('/').pop() || "attendance.jpg";
+      const fileType = fileName.split('.').pop() === 'png' ? 'image/png' : 'image/jpeg';
+
+      formData.append("file", {
+        uri: Platform.OS === 'ios' ? photo.uri.replace('file://', '') : photo.uri,
+        name: fileName,
+        type: fileType,
+      } as any);
+
+      console.log("=== SENDING MULTIPART DATA ===");
+      console.log("Lat/Long:", latitude, longitude);
+      console.log("File URI:", photo.uri);
+
+      // 4. Kirim ke API
       let response;
       if (clockType === "clockIn") {
-        response = await attendanceApi.clockIn();
+        response = await attendanceApi.clockIn(formData);
       } else {
-        response = await attendanceApi.clockOut();
+        response = await attendanceApi.clockOut(formData);
       }
 
-      if (response.success) {
+      // 5. Tanggapan API
+      if (response.status === "VERIFIED") {
         setVerificationState("success");
         Alert.alert(
           clockType === "clockIn" ? "Clocked In" : "Clocked Out",
-          `Successfully ${clockType === "clockIn" ? "clocked in" : "clocked out"} at ${response.time}`,
-          [{ text: "OK", onPress: () => navigation.goBack() }]
+          `Berhasil ${clockType === "clockIn" ? "masuk" : "keluar"} pada ${response.checkInTime}`,
         );
       } else {
         setVerificationState("failed");
-        Alert.alert("Failed", response.message || "Face verification failed. Please try again.");
+        Alert.alert("Gagal", response.status || "Verifikasi gagal.");
       }
-    } catch (error) {
+
+    } catch (error: any) {
+      console.error("Attendance Capture Error:", error);
       setVerificationState("failed");
-      Alert.alert("Error", "Something went wrong. Please try again.");
+      const errorMessage = error.message || "Terjadi kesalahan saat mengirim data.";
+      Alert.alert("Error", errorMessage);
     } finally {
       setIsProcessing(false);
+      // Jika gagal, kembali ke status scanning agar bisa coba lagi.
       if (verificationState !== "success") {
         setVerificationState("scanning");
       }
     }
   };
 
-  if (!permission) {
+  // Loading State saat cek izin
+  if (!cameraPermission || !locationPermission) {
     return (
       <View style={[styles.container, { backgroundColor: "#000" }]}>
         <ActivityIndicator size="large" color="#FFFFFF" />
@@ -81,7 +142,8 @@ export default function CameraScreen() {
     );
   }
 
-  if (!permission.granted) {
+  // Tampilkan UI Permintaan Izin (Jika belum granted)
+  if (!cameraPermission.granted || !locationPermission.granted) {
     return (
       <View
         style={[
@@ -93,129 +155,96 @@ export default function CameraScreen() {
           },
         ]}
       >
-        <Feather name="camera-off" size={64} color={Colors.light.primary} />
+        <Feather name="alert-triangle" size={64} color={Colors.light.primary} />
         <ThemedText type="h3" style={styles.permissionTitle}>
-          Camera Access Required
+          Izin Kamera dan Lokasi Diperlukan
         </ThemedText>
         <ThemedText type="body" style={styles.permissionText}>
-          We need camera access to verify your identity for attendance tracking.
+          Kami memerlukan akses kamera untuk verifikasi wajah dan lokasi untuk pencatatan absensi.
         </ThemedText>
-        <Button onPress={requestPermission} style={styles.permissionButton}>
-          Enable Camera
-        </Button>
+        <Pressable 
+            onPress={async () => {
+                await requestCameraPermission();
+                await requestLocationPermission();
+            }} 
+            style={[styles.permissionButton, { backgroundColor: Colors.light.primary, padding: 12, borderRadius: 8 }]}
+        >
+           <ThemedText type="body" style={{ color: "#FFF", textAlign: 'center' }}>Aktifkan Izin</ThemedText>
+        </Pressable>
         <Pressable onPress={() => navigation.goBack()} style={styles.cancelButton}>
           <ThemedText type="body" style={{ color: Colors.light.textSecondary }}>
-            Cancel
+            Batal
           </ThemedText>
         </Pressable>
       </View>
     );
   }
 
+  // UI Utama (Kamera)
   return (
     <View style={styles.container}>
-      {Platform.OS !== "web" ? (
-        <CameraView
-          ref={cameraRef}
-          style={styles.camera}
-          facing="front"
-        >
-          <View style={[styles.overlay, { paddingTop: insets.top + Spacing.xl }]}>
-            <View style={styles.topBar}>
-              <Pressable
-                onPress={() => navigation.goBack()}
-                style={styles.closeButton}
-              >
-                <Feather name="x" size={24} color="#FFFFFF" />
-              </Pressable>
-            </View>
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing="front"
+      >
+        <View style={[styles.overlay, { paddingTop: insets.top + Spacing.xl }]}>
+          
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={styles.closeButton}
+            >
+              <Feather name="x" size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
 
-            <View style={styles.instructionContainer}>
-              <ThemedText type="h4" style={styles.instructionText}>
-                {verificationState === "scanning"
-                  ? "Please Look at the Camera and Hold Still"
-                  : verificationState === "verifying"
-                  ? "Verifying Your Face..."
-                  : verificationState === "success"
-                  ? "Verification Successful!"
-                  : "Verification Failed"}
-              </ThemedText>
-            </View>
+          {/* Instruksi Status */}
+          <View style={styles.instructionContainer}>
+            <ThemedText type="h4" style={styles.instructionText}>
+              {verificationState === "scanning"
+                ? "Arahkan Wajah ke Bingkai dan Ambil Foto"
+                : verificationState === "verifying"
+                ? "Memverifikasi Wajah..."
+                : verificationState === "success"
+                ? "Verifikasi Berhasil!"
+                : "Verifikasi Gagal"}
+            </ThemedText>
+          </View>
 
-            <View style={styles.faceGuideContainer}>
-              <View style={styles.faceGuide}>
-                <View style={[styles.cornerTL, styles.corner]} />
-                <View style={[styles.cornerTR, styles.corner]} />
-                <View style={[styles.cornerBL, styles.corner]} />
-                <View style={[styles.cornerBR, styles.corner]} />
-              </View>
-            </View>
-
-            <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.xl }]}>
-              <Pressable
-                onPress={handleCapture}
-                disabled={isProcessing}
-                style={[
-                  styles.captureButton,
-                  isProcessing && styles.captureButtonDisabled,
-                ]}
-              >
-                {isProcessing ? (
-                  <ActivityIndicator size="small" color={Colors.light.primary} />
-                ) : (
-                  <View style={styles.captureButtonInner} />
-                )}
-              </Pressable>
-              <ThemedText type="small" style={styles.captureHint}>
-                {clockType === "clockIn" ? "Tap to Clock In" : "Tap to Clock Out"}
-              </ThemedText>
+          {/* Bingkai Wajah */}
+          <View style={styles.faceGuideContainer}>
+            <View style={styles.faceGuide}>
+              <View style={[styles.cornerTL, styles.corner]} />
+              <View style={[styles.cornerTR, styles.corner]} />
+              <View style={[styles.cornerBL, styles.corner]} />
+              <View style={[styles.cornerBR, styles.corner]} />
             </View>
           </View>
-        </CameraView>
-      ) : (
-        <View
-          style={[
-            styles.webFallback,
-            {
-              paddingTop: insets.top + Spacing.xl,
-              paddingBottom: insets.bottom + Spacing.xl,
-            },
-          ]}
-        >
-          <Feather name="camera" size={64} color={Colors.light.primary} />
-          <ThemedText type="h3" style={styles.webTitle}>
-            Camera Not Available
-          </ThemedText>
-          <ThemedText type="body" style={styles.webText}>
-            Run this app in Expo Go on your mobile device to use the camera for face verification.
-          </ThemedText>
-          <Button
-            onPress={() => {
-              setIsProcessing(true);
-              setTimeout(async () => {
-                const response = clockType === "clockIn"
-                  ? await attendanceApi.clockIn()
-                  : await attendanceApi.clockOut();
-                setIsProcessing(false);
-                Alert.alert(
-                  clockType === "clockIn" ? "Clocked In" : "Clocked Out",
-                  `Successfully ${clockType === "clockIn" ? "clocked in" : "clocked out"} at ${response.time}`,
-                  [{ text: "OK", onPress: () => navigation.goBack() }]
-                );
-              }, 1000);
-            }}
-            style={styles.webButton}
-            disabled={isProcessing}
-          >
-            {isProcessing ? "Processing..." : clockType === "clockIn" ? "Clock In (Demo)" : "Clock Out (Demo)"}
-          </Button>
-          <Pressable onPress={() => navigation.goBack()} style={styles.cancelButton}>
-            <ThemedText type="body" style={{ color: Colors.light.textSecondary }}>
-              Cancel
+
+          {/* Bottom Bar / Tombol Capture */}
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.xl }]}>
+            <Pressable
+              onPress={handleCapture}
+              disabled={isProcessing}
+              style={[
+                styles.captureButton,
+                isProcessing && styles.captureButtonDisabled,
+              ]}
+            >
+              {isProcessing ? (
+                <ActivityIndicator size="small" color={Colors.light.primary} />
+              ) : (
+                <View style={styles.captureButtonInner} />
+              )}
+            </Pressable>
+            <ThemedText type="small" style={styles.captureHint}>
+              {clockType === "clockIn" ? "Tap untuk Clock In" : "Tap untuk Clock Out"}
             </ThemedText>
-          </Pressable>
+          </View>
         </View>
-      )}
+      </CameraView>
     </View>
   );
 }
@@ -343,32 +372,9 @@ const styles = StyleSheet.create({
   },
   permissionButton: {
     width: "100%",
-    backgroundColor: Colors.light.primary,
   },
   cancelButton: {
     marginTop: Spacing.lg,
     padding: Spacing.md,
-  },
-  webFallback: {
-    flex: 1,
-    backgroundColor: Colors.light.backgroundRoot,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.xl,
-  },
-  webTitle: {
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.md,
-    textAlign: "center",
-    color: Colors.light.text,
-  },
-  webText: {
-    textAlign: "center",
-    color: Colors.light.textSecondary,
-    marginBottom: Spacing.xl,
-  },
-  webButton: {
-    width: "100%",
-    backgroundColor: Colors.light.primary,
   },
 });

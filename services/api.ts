@@ -1,6 +1,39 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 
-const API_BASE_URL = "http://localhost:8080/api";
+
+// --- KONFIGURASI HOST ---
+// Mengambil IP Host dari Expo Go (untuk development)
+const debuggerHost = Constants.expoGoConfig?.debuggerHost;
+const host = debuggerHost ? debuggerHost.split(":")[0] : "localhost"; 
+
+// Ganti port sesuai backend Spring Boot Anda (biasanya 8080)
+// export const API_BASE_URL = `http://${host}:8080/api`;
+export const API_BASE_URL = `https://troi-office-dev-latest.onrender.com/api`;
+
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export const setUnauthorizedHandler = (callback: () => void) => {
+  onUnauthorizedCallback = callback;
+};
+
+const handleResponseError = async (response: Response) => {
+  if (response.status === 401) {
+    // Jika ada callback terdaftar (fungsi logout), jalankan
+    if (onUnauthorizedCallback) {
+      console.log("Session expired (401), executing logout...");
+      onUnauthorizedCallback();
+    }
+    throw new Error("Session expired. Please login again.");
+  }
+
+  const errorBody = await response.text();
+  console.error(`API Error ${response.status}: ${errorBody}`);
+  throw new Error(`API Error: ${response.status}`);
+};
+
+// --- INTERFACES ---
 
 export interface LoginRequest {
   username: string;
@@ -13,41 +46,69 @@ export interface LoginResponse {
   username: string;
 }
 
-export interface ProfileResponse {
+export interface RoleResponseDTO {
+  id: string;
+  name: string;
+}
+
+export interface UserResponseDTO {
   id: string;
   name: string;
   username: string;
-  employeeId: string;
-  jobPosition: string;
-  status: string;
-  email: string;
-  department: string;
-  location: string;
+  role: RoleResponseDTO;
 }
 
-export interface AttendanceRecord {
+export interface EmployeeResponseDTO {
   id: string;
-  date: string;
-  checkIn: string | null;
-  checkOut: string | null;
-  totalHours: string;
-  location: string;
+  fullName: string;
+  employeeNumber: string;
+  active: boolean;
 }
+
+export interface ProfileDetailResponseDTO {
+  user: UserResponseDTO;
+  employee: EmployeeResponseDTO;
+}
+
+// Interface AttendanceData dihapus karena kita menggunakan FormData langsung
 
 export interface AttendanceStats {
-  absenceDays: number;
-  totalAttended: number;
-  month: string;
+  employeeName: string;
+  monthYear: string;
+  totalWorkingDays: number;
+  daysPresent: number;
+  daysAbsent: number;
+  daysLateCheckIn: number;
 }
 
-export interface ClockResponse {
-  success: boolean;
-  time: string;
-  message: string;
+export interface AttendanceResponse {
+  id: string;
+  date: string;
+  checkInTime: string;
+  checkOutTime: string;
+  employeeName: string;
+  checkInLatitude: string;
+  checkInLongitude: string;
+  checkOutLatitude: string;
+  checkOutLongitude: string;
+  status: string;
+  location: string;
+  totalHours: number;
 }
 
 const getAuthToken = async (): Promise<string | null> => {
   return await AsyncStorage.getItem("authToken");
+};
+
+const getMonthRange = () => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    .toISOString()
+    .split("T")[0];
+  return { start, end };
 };
 
 const apiRequest = async <T>(
@@ -67,8 +128,35 @@ const apiRequest = async <T>(
     headers,
   });
 
+  // UBAH BAGIAN INI: Panggil handleResponseError jika tidak OK
   if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
+    await handleResponseError(response);
+  }
+
+  return response.json();
+};
+
+const apiRequestMultipart = async <T>(
+  endpoint: string,
+  method: "POST" | "PUT",
+  formData: FormData
+): Promise<T> => {
+  const token = await getAuthToken();
+
+  const headers: HeadersInit = {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method,
+    body: formData,
+    headers,
+  });
+
+  // UBAH BAGIAN INI: Panggil handleResponseError jika tidak OK
+  if (!response.ok) {
+    await handleResponseError(response);
   }
 
   return response.json();
@@ -94,18 +182,8 @@ export const authApi = {
       await AsyncStorage.setItem("userData", JSON.stringify(data));
       return data;
     } catch (error) {
-      console.log("Backend unavailable, using mock login for testing");
-      if (credentials.username === "superadmin" && credentials.password === "aA@123") {
-        const mockData: LoginResponse = {
-          token: "mock-jwt-token-for-testing",
-          name: "Akhmad Maariz",
-          username: "superadmin",
-        };
-        await AsyncStorage.setItem("authToken", mockData.token);
-        await AsyncStorage.setItem("userData", JSON.stringify(mockData));
-        return mockData;
-      }
-      throw new Error("Invalid credentials");
+      console.log("Login Error:", error);
+      throw error;
     }
   },
 
@@ -126,74 +204,26 @@ export const authApi = {
 };
 
 export const profileApi = {
-  getProfile: async (): Promise<ProfileResponse> => {
+  getProfile: async (): Promise<ProfileDetailResponseDTO> => {
     try {
-      return await apiRequest<ProfileResponse>("/profile/detail");
+      return await apiRequest<ProfileDetailResponseDTO>("/profiles/detail");
     } catch (error) {
-      console.log("Using mock profile data");
-      return {
-        id: "1",
-        name: "Akhmad Maariz",
-        username: "superadmin",
-        employeeId: "2023988231",
-        jobPosition: "UI/UX Designer",
-        status: "Full Time",
-        email: "akhmad.maariz@company.com",
-        department: "Design",
-        location: "West Jakarta, Indonesia",
-      };
+      console.error('Error get detail profile:', error);
+      throw error;
     }
   },
 };
 
 export const attendanceApi = {
-  getHistory: async (): Promise<AttendanceRecord[]> => {
+  getHistory: async (): Promise<AttendanceResponse[]> => {
     try {
-      return await apiRequest<AttendanceRecord[]>("/attendance/history");
+      const { start, end } = getMonthRange();
+      return await apiRequest<AttendanceResponse[]>(
+        `/attendance/list?start=${start}&end=${end}`
+      );
     } catch (error) {
-      console.log("Using mock attendance data");
-      return [
-        {
-          id: "1",
-          date: "2023-11-23",
-          checkIn: "07:58",
-          checkOut: null,
-          totalHours: "-",
-          location: "Office, West Jakarta, Indonesia",
-        },
-        {
-          id: "2",
-          date: "2023-11-22",
-          checkIn: "07:57",
-          checkOut: "17:00",
-          totalHours: "08:03",
-          location: "Office, West Jakarta, Indonesia",
-        },
-        {
-          id: "3",
-          date: "2023-11-21",
-          checkIn: "08:03",
-          checkOut: "17:08",
-          totalHours: "08:05",
-          location: "Office, West Jakarta, Indonesia",
-        },
-        {
-          id: "4",
-          date: "2023-11-20",
-          checkIn: "07:59",
-          checkOut: "17:00",
-          totalHours: "08:01",
-          location: "Office, West Jakarta, Indonesia",
-        },
-        {
-          id: "5",
-          date: "2023-11-17",
-          checkIn: "08:05",
-          checkOut: "17:10",
-          totalHours: "08:05",
-          location: "Office, West Jakarta, Indonesia",
-        },
-      ];
+      console.error("Error get list attendance:", error);
+      throw error;
     }
   },
 
@@ -201,62 +231,25 @@ export const attendanceApi = {
     try {
       return await apiRequest<AttendanceStats>("/attendance/stats");
     } catch (error) {
-      console.log("Using mock stats data");
-      return {
-        absenceDays: 3,
-        totalAttended: 15,
-        month: "November",
-      };
+      console.error('Error get attendance stats:', error);
+      throw error;
     }
   },
 
-  getTodayStatus: async (): Promise<{ checkIn: string | null; checkOut: string | null }> => {
+  getTodayStatus: async (): Promise<AttendanceResponse> => {
     try {
-      return await apiRequest<{ checkIn: string | null; checkOut: string | null }>("/attendance/today");
+      return await apiRequest<AttendanceResponse>("/attendance/today");
     } catch (error) {
-      console.log("Using mock today status");
-      return {
-        checkIn: "07:58",
-        checkOut: null,
-      };
+      console.error('Error get attendance today:', error);
+      throw error;
     }
   },
 
-  clockIn: async (faceData?: string): Promise<ClockResponse> => {
-    try {
-      return await apiRequest<ClockResponse>("/attendance/clock-in", {
-        method: "POST",
-        body: JSON.stringify({ faceData }),
-      });
-    } catch (error) {
-      console.log("Using mock clock-in response");
-      const now = new Date();
-      const hours = now.getHours().toString().padStart(2, "0");
-      const minutes = now.getMinutes().toString().padStart(2, "0");
-      return {
-        success: true,
-        time: `${hours}:${minutes}`,
-        message: "Clock in successful",
-      };
-    }
+  clockIn: async (data: FormData): Promise<AttendanceResponse> => {
+    return await apiRequestMultipart<AttendanceResponse>("/attendance", "POST", data);
   },
 
-  clockOut: async (faceData?: string): Promise<ClockResponse> => {
-    try {
-      return await apiRequest<ClockResponse>("/attendance/clock-out", {
-        method: "POST",
-        body: JSON.stringify({ faceData }),
-      });
-    } catch (error) {
-      console.log("Using mock clock-out response");
-      const now = new Date();
-      const hours = now.getHours().toString().padStart(2, "0");
-      const minutes = now.getMinutes().toString().padStart(2, "0");
-      return {
-        success: true,
-        time: `${hours}:${minutes}`,
-        message: "Clock out successful",
-      };
-    }
+  clockOut: async (data: FormData): Promise<AttendanceResponse> => {
+    return await apiRequestMultipart<AttendanceResponse>("/attendance", "POST", data);
   },
 };

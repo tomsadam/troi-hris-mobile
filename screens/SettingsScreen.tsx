@@ -6,13 +6,13 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { profileApi, ProfileResponse } from "@/services/api";
+import { profileApi, ProfileDetailResponseDTO } from "@/services/api";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 
 export default function SettingsScreen() {
   const { theme, isDark } = useTheme();
   const { logout, user } = useAuth();
-  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [profile, setProfile] = useState<ProfileDetailResponseDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const colors = isDark ? Colors.dark : Colors.light;
@@ -72,10 +72,10 @@ export default function SettingsScreen() {
           <Feather name="user" size={40} color={colors.primary} />
         </View>
         <ThemedText type="h3" style={styles.profileName}>
-          {profile?.name || user?.name || "User"}
+          {profile?.employee.fullName || user?.name || "User"}
         </ThemedText>
         <ThemedText type="body" style={{ color: colors.textSecondary }}>
-          {profile?.jobPosition || "Employee"}
+          {profile?.employee.employeeNumber || "Employee"}
         </ThemedText>
       </View>
 
@@ -90,7 +90,7 @@ export default function SettingsScreen() {
               Employee ID
             </ThemedText>
             <ThemedText type="body" style={{ fontWeight: "500" }}>
-              {profile?.employeeId || "-"}
+              {profile?.employee.employeeNumber || "-"}
             </ThemedText>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -98,9 +98,9 @@ export default function SettingsScreen() {
             <ThemedText type="small" style={{ color: colors.textSecondary }}>
               Department
             </ThemedText>
-            <ThemedText type="body" style={{ fontWeight: "500" }}>
+            {/* <ThemedText type="body" style={{ fontWeight: "500" }}>
               {profile?.department || "-"}
-            </ThemedText>
+            </ThemedText> */}
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.infoRow}>
@@ -108,7 +108,7 @@ export default function SettingsScreen() {
               Status
             </ThemedText>
             <ThemedText type="body" style={{ fontWeight: "500" }}>
-              {profile?.status || "-"}
+              {profile?.employee.active || "-"}
             </ThemedText>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -116,9 +116,9 @@ export default function SettingsScreen() {
             <ThemedText type="small" style={{ color: colors.textSecondary }}>
               Location
             </ThemedText>
-            <ThemedText type="body" style={{ fontWeight: "500" }}>
+            {/* <ThemedText type="body" style={{ fontWeight: "500" }}>
               {profile?.location || "-"}
-            </ThemedText>
+            </ThemedText> */}
           </View>
         </View>
       </View>

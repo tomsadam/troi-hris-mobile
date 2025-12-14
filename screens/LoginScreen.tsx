@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
@@ -19,9 +21,12 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useTheme();
   const { login } = useAuth();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const colors = isDark ? Colors.dark : Colors.light;
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -32,14 +37,12 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await login(username, password);
-    } catch (error) {
+    } catch {
       Alert.alert("Login Failed", "Invalid username or password. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
-
-  const colors = isDark ? Colors.dark : Colors.light;
 
   return (
     <View
@@ -47,91 +50,92 @@ export default function LoginScreen() {
         styles.container,
         {
           backgroundColor: theme.backgroundRoot,
-          paddingTop: insets.top + Spacing["4xl"],
-          paddingBottom: insets.bottom + Spacing.xl,
+          paddingTop: insets.top + Spacing["3xl"],
+          paddingBottom: insets.bottom,
         },
       ]}
     >
       <View style={styles.logoContainer}>
         <Image
-          source={require("../assets/images/icon.png")}
+          source={require("../assets/images/troi-logo.jpeg")}
           style={styles.logo}
           resizeMode="contain"
         />
         <ThemedText type="h2" style={styles.appTitle}>
-          Attendance
+          TROI
         </ThemedText>
-        <ThemedText
-          type="small"
-          style={[styles.subtitle, { color: colors.textSecondary }]}
-        >
+        <ThemedText type="small" style={[styles.subtitle, { color: colors.textSecondary }]}>
           Sign in to continue
         </ThemedText>
       </View>
 
-      <View style={styles.formContainer}>
-        <View style={styles.inputGroup}>
-          <ThemedText type="small" style={styles.label}>
-            Username
-          </ThemedText>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.backgroundDefault,
-                color: theme.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="Enter your username"
-            placeholderTextColor={colors.textSecondary}
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <ThemedText type="small" style={styles.label}>
-            Password
-          </ThemedText>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.backgroundDefault,
-                color: theme.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="Enter your password"
-            placeholderTextColor={colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
-
-        <Button
-          onPress={handleLogin}
-          disabled={isLoading}
-          style={[styles.loginButton, { backgroundColor: colors.primary }]}
+      <KeyboardAvoidingView
+        style={{ flex: 1, width: "100%" }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+          keyboardShouldPersistTaps="handled"
         >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            "Sign In"
-          )}
-        </Button>
-      </View>
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <ThemedText type="small" style={styles.label}>
+                Username
+              </ThemedText>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.backgroundDefault,
+                    color: theme.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Enter your username"
+                placeholderTextColor={colors.textSecondary}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText type="small" style={styles.label}>
+                Password
+              </ThemedText>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.backgroundDefault,
+                    color: theme.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <Button
+              onPress={handleLogin}
+              disabled={isLoading}
+              style={[styles.loginButton, { backgroundColor: colors.primary }]}
+            >
+              {isLoading ? <ActivityIndicator color="#FFF" size="small" /> : "Sign In"}
+            </Button>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={styles.footer}>
-        <ThemedText
-          type="small"
-          style={[styles.footerText, { color: colors.textSecondary }]}
-        >
-          Enterprise Attendance System
+        <ThemedText type="small" style={[styles.footerText, { color: colors.textSecondary }]}>
+          TROI Attendance System
         </ThemedText>
       </View>
     </View>
@@ -145,7 +149,6 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: "center",
-    marginTop: Spacing["4xl"],
     marginBottom: Spacing["4xl"],
   },
   logo: {
@@ -160,7 +163,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   formContainer: {
-    flex: 1,
+    width: "100%",
   },
   inputGroup: {
     marginBottom: Spacing.lg,
