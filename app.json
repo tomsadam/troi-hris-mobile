@@ -1,5 +1,8 @@
 {
   "expo": {
+    "updates": {
+      "enabled": false
+    },
     "name": "Attendance",
     "slug": "attendance-app",
     "version": "1.0.0",

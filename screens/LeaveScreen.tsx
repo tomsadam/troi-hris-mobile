@@ -20,9 +20,9 @@ export default function LeaveScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
 
   const userInfo = {
-    name: "Akhmad Maariz",
+    name: "Panji Laksono",
     employeeId: "2023988231",
-    jobPosition: "UI/UX Designer",
+    jobPosition: "Manager",
     status: "Full Time",
     availableLeave: 12,
     usedLeave: 8,

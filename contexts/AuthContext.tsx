@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // Import setUnauthorizedHandler dari api.ts
-import { authApi, LoginResponse, setUnauthorizedHandler } from "@/services/api";
+import { authApi, LoginResponse, setUnauthorizedHandler, setLocalAuthToken } from "@/services/api";
 
 interface AuthContextType {
   user: LoginResponse | null;
@@ -19,12 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fungsi logout didefinisikan sebelum useEffect
   const logout = async () => {
     try {
-        await authApi.logout();
+      await authApi.logout();
     } catch (e) {
-        console.log("Error during logout api call", e);
+      console.log("Error during logout api call", e);
     } finally {
-        // Penting: Set state null agar UI otomatis pindah ke Login Screen
-        setUser(null); 
+      // Penting: Set state null agar UI otomatis pindah ke Login Screen
+      setUser(null);
     }
   };
 
@@ -40,7 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuthStatus = async () => {
     try {
       const storedUser = await authApi.getStoredUser();
-      const isAuth = await authApi.isAuthenticated();
+      const isAuth = await authApi.isAuthenticated(); // This will prime the memory cache due to getAuthToken logic update if we wanted, but let's be explicit
+      const token = await AsyncStorage.getItem("authToken");
+      if (token) setLocalAuthToken(token); // Sync to memory explicitly
+
       if (isAuth && storedUser) {
         setUser(storedUser);
       }

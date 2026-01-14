@@ -6,7 +6,7 @@ import { Platform } from "react-native";
 // --- KONFIGURASI HOST ---
 // Mengambil IP Host dari Expo Go (untuk development)
 const debuggerHost = Constants.expoGoConfig?.debuggerHost;
-const host = debuggerHost ? debuggerHost.split(":")[0] : "localhost"; 
+const host = debuggerHost ? debuggerHost.split(":")[0] : "localhost";
 
 // Ganti port sesuai backend Spring Boot Anda (biasanya 8080)
 // export const API_BASE_URL = `http://${host}:8080/api`;
@@ -96,8 +96,18 @@ export interface AttendanceResponse {
   totalHours: number;
 }
 
+// --- TOKEN MANAGEMENT ---
+let localAuthToken: string | null = null;
+
+export const setLocalAuthToken = (token: string | null) => {
+  localAuthToken = token;
+};
+
 const getAuthToken = async (): Promise<string | null> => {
-  return await AsyncStorage.getItem("authToken");
+  if (localAuthToken) return localAuthToken;
+  const token = await AsyncStorage.getItem("authToken");
+  if (token) localAuthToken = token;
+  return token;
 };
 
 const getMonthRange = () => {
@@ -116,7 +126,7 @@ const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const token = await getAuthToken();
-  
+
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -180,6 +190,7 @@ export const authApi = {
       const data: LoginResponse = await response.json();
       await AsyncStorage.setItem("authToken", data.token);
       await AsyncStorage.setItem("userData", JSON.stringify(data));
+      setLocalAuthToken(data.token); // Cache to memory
       return data;
     } catch (error) {
       console.log("Login Error:", error);
@@ -188,6 +199,7 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
+    setLocalAuthToken(null); // Clear memory cache
     await AsyncStorage.removeItem("authToken");
     await AsyncStorage.removeItem("userData");
   },
