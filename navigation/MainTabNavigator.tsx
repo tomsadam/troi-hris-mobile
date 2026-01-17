@@ -13,6 +13,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootNavigator";
+import { attendanceApi } from "@/services/api";
 
 export type MainTabParamList = {
   HomeTab: undefined;
@@ -29,10 +30,25 @@ function ClockButton() {
   const { isDark } = useTheme();
   const colors = isDark ? Colors.dark : Colors.light;
 
+
+  const handlePress = async () => {
+    try {
+      const status = await attendanceApi.getTodayStatus();
+      // Jika sudah Check In dan belum Check Out -> Arahkan ke Clock Out
+      // Jika belum Check In atau sudah Check Out -> Arahkan ke Clock In
+      const type = (status.checkInTime && !status.checkOutTime) ? "clockOut" : "clockIn";
+      navigation.navigate("Camera", { type });
+    } catch (error) {
+      console.error("Failed to check status:", error);
+      // Fallback ke clockIn jika gagal cek status
+      navigation.navigate("Camera", { type: "clockIn" });
+    }
+  };
+
   return (
     <View style={styles.clockButtonWrapper}>
       <Pressable
-        onPress={() => navigation.navigate("Camera", { type: "clockIn" })}
+        onPress={handlePress}
         style={({ pressed }) => [
           styles.clockButton,
           { backgroundColor: colors.primary },
@@ -103,7 +119,7 @@ export default function MainTabNavigator() {
           title: "Analytics",
           headerShown: true,
           headerTitle: "Analytics",
-          ...getCommonScreenOptions({ theme, isDark }),
+          ...getCommonScreenOptions({ theme, isDark }) as any,
           tabBarIcon: ({ color, size }) => (
             <Feather name="bar-chart-2" size={size} color={color} />
           ),
@@ -129,7 +145,7 @@ export default function MainTabNavigator() {
           title: "Leave",
           headerShown: true,
           headerTitle: "Leave",
-          ...getCommonScreenOptions({ theme, isDark }),
+          ...getCommonScreenOptions({ theme, isDark }) as any,
           tabBarIcon: ({ color, size }) => (
             <Feather name="calendar" size={size} color={color} />
           ),
@@ -142,7 +158,7 @@ export default function MainTabNavigator() {
           title: "Settings",
           headerShown: true,
           headerTitle: "Profile",
-          ...getCommonScreenOptions({ theme, isDark }),
+          ...getCommonScreenOptions({ theme, isDark }) as any,
           tabBarIcon: ({ color, size }) => (
             <Feather name="settings" size={size} color={color} />
           ),

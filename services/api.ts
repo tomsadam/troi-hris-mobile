@@ -30,7 +30,13 @@ const handleResponseError = async (response: Response) => {
 
   const errorBody = await response.text();
   console.error(`API Error ${response.status}: ${errorBody}`);
-  throw new Error(`API Error: ${response.status}`);
+
+  if (response.status === 500) {
+    console.error("Critical Server Error (500). Please check backend logs if possible.");
+    console.error("Full Error Body:", errorBody);
+  }
+
+  throw new Error(errorBody || `API Error: ${response.status}`);
 };
 
 // --- INTERFACES ---

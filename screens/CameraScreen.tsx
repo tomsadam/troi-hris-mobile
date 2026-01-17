@@ -21,7 +21,9 @@ type CameraScreenRouteProp = RouteProp<{ Camera: { type: "clockIn" | "clockOut" 
 const formatTime = (isoString?: string | null): string => {
   if (!isoString) return "-";
 
-  return new Date(isoString).toLocaleTimeString("id-ID", {
+  const utc = isoString.endsWith("Z") ? isoString : `${isoString}Z`;
+
+  return new Date(utc).toLocaleTimeString("id-ID", {
     timeZone: "Asia/Jakarta",
     hour: "2-digit",
     minute: "2-digit",
@@ -42,14 +44,7 @@ export default function CameraScreen() {
 
   const clockType = route.params?.type || "clockIn";
 
-  useEffect(() => {
-    if (verificationState === "success") {
-      const timer = setTimeout(() => {
-        navigation.goBack();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [verificationState, navigation]);
+
 
   const handleCapture = async () => {
     if (isProcessing) return;
@@ -92,8 +87,12 @@ export default function CameraScreen() {
       const formData = new FormData();
 
       // Field string (sesuai field di Java Class 'AttendanceRequest')
-      formData.append("latitude", latitude.toString());
-      formData.append("longitude", longitude.toString());
+      // Gunakan toFixed(6) untuk memastikan format angka baku (mis: "-6.200000")
+      const latString = latitude.toFixed(6);
+      const longString = longitude.toFixed(6);
+
+      formData.append("latitude", latString);
+      formData.append("longitude", longString);
 
       // Field file
       const fileName = photo.uri.split('/').pop() || "attendance.jpg";
@@ -105,9 +104,12 @@ export default function CameraScreen() {
         type: fileType,
       } as any);
 
-      console.log("=== SENDING MULTIPART DATA ===");
-      console.log("Lat/Long:", latitude, longitude);
+      console.log("=== SENDING MULTIPART DATA (DEBUG) ===");
+      console.log("Latitude:", latString);
+      console.log("Longitude:", longString);
       console.log("File URI:", photo.uri);
+      console.log("File Name:", fileName);
+      console.log("File Type:", fileType);
 
       // 4. Kirim ke API
       let response;
@@ -126,6 +128,12 @@ export default function CameraScreen() {
         Alert.alert(
           clockType === "clockIn" ? "Clocked In" : "Clocked Out",
           `Berhasil ${clockType === "clockIn" ? "masuk" : "keluar"} pada ${timeWIB}`,
+          [
+            {
+              text: "OK",
+              onPress: () => navigation.goBack(),
+            },
+          ]
         );
       } else {
         setVerificationState("failed");
