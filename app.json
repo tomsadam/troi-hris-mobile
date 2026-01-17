@@ -58,7 +58,8 @@
         {
           "cameraPermission": "Allow Attendance to access your camera for facial recognition during clock in/out."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "reactCompiler": true

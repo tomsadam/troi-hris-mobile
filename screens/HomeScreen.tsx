@@ -269,12 +269,17 @@ export default function HomeScreen() {
 
 const formatTime = (isoString?: string | null): string => {
   if (!isoString) return "-";
-  const date = new Date(isoString);
-  return date.toLocaleTimeString([], {
+
+  const utc = isoString.endsWith("Z") ? isoString : `${isoString}Z`;
+
+  return new Date(utc).toLocaleTimeString("id-ID", {
+    timeZone: "Asia/Jakarta",
     hour: "2-digit",
     minute: "2-digit",
   });
 };
+
+
 
 
 

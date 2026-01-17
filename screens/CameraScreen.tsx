@@ -18,18 +18,28 @@ import { Spacing, Colors } from "@/constants/theme";
 
 type CameraScreenRouteProp = RouteProp<{ Camera: { type: "clockIn" | "clockOut" } }, "Camera">;
 
+const formatTime = (isoString?: string | null): string => {
+  if (!isoString) return "-";
+
+  return new Date(isoString).toLocaleTimeString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 export default function CameraScreen() {
   const navigation = useNavigation();
   const route = useRoute<CameraScreenRouteProp>();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
-  
+
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
-  
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [verificationState, setVerificationState] = useState<"scanning" | "verifying" | "success" | "failed">("scanning");
-  
+
   const clockType = route.params?.type || "clockIn";
 
   useEffect(() => {
@@ -58,7 +68,7 @@ export default function CameraScreen() {
           return;
         }
       }
-      
+
       const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const latitude = location.coords.latitude;
       const longitude = location.coords.longitude;
@@ -67,7 +77,7 @@ export default function CameraScreen() {
       if (!cameraRef.current) {
         throw new Error("Camera not initialized.");
       }
-      
+
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.5, // Kompresi gambar
         skipProcessing: true,
@@ -77,7 +87,7 @@ export default function CameraScreen() {
       if (!photo || !photo.uri) {
         throw new Error("Failed to capture photo.");
       }
-      
+
       // 3. Susun FormData (Multipart)
       const formData = new FormData();
 
@@ -110,9 +120,12 @@ export default function CameraScreen() {
       // 5. Tanggapan API
       if (response.status === "VERIFIED") {
         setVerificationState("success");
+
+        const timeWIB = formatTime(response.checkInTime);
+
         Alert.alert(
           clockType === "clockIn" ? "Clocked In" : "Clocked Out",
-          `Berhasil ${clockType === "clockIn" ? "masuk" : "keluar"} pada ${response.checkInTime}`,
+          `Berhasil ${clockType === "clockIn" ? "masuk" : "keluar"} pada ${timeWIB}`,
         );
       } else {
         setVerificationState("failed");
@@ -162,14 +175,14 @@ export default function CameraScreen() {
         <ThemedText type="body" style={styles.permissionText}>
           Kami memerlukan akses kamera untuk verifikasi wajah dan lokasi untuk pencatatan absensi.
         </ThemedText>
-        <Pressable 
-            onPress={async () => {
-                await requestCameraPermission();
-                await requestLocationPermission();
-            }} 
-            style={[styles.permissionButton, { backgroundColor: Colors.light.primary, padding: 12, borderRadius: 8 }]}
+        <Pressable
+          onPress={async () => {
+            await requestCameraPermission();
+            await requestLocationPermission();
+          }}
+          style={[styles.permissionButton, { backgroundColor: Colors.light.primary, padding: 12, borderRadius: 8 }]}
         >
-           <ThemedText type="body" style={{ color: "#FFF", textAlign: 'center' }}>Aktifkan Izin</ThemedText>
+          <ThemedText type="body" style={{ color: "#FFF", textAlign: 'center' }}>Aktifkan Izin</ThemedText>
         </Pressable>
         <Pressable onPress={() => navigation.goBack()} style={styles.cancelButton}>
           <ThemedText type="body" style={{ color: Colors.light.textSecondary }}>
@@ -189,7 +202,7 @@ export default function CameraScreen() {
         facing="front"
       >
         <View style={[styles.overlay, { paddingTop: insets.top + Spacing.xl }]}>
-          
+
           {/* Top Bar */}
           <View style={styles.topBar}>
             <Pressable
@@ -206,10 +219,10 @@ export default function CameraScreen() {
               {verificationState === "scanning"
                 ? "Arahkan Wajah ke Bingkai dan Ambil Foto"
                 : verificationState === "verifying"
-                ? "Memverifikasi Wajah..."
-                : verificationState === "success"
-                ? "Verifikasi Berhasil!"
-                : "Verifikasi Gagal"}
+                  ? "Memverifikasi Wajah..."
+                  : verificationState === "success"
+                    ? "Verifikasi Berhasil!"
+                    : "Verifikasi Gagal"}
             </ThemedText>
           </View>
 

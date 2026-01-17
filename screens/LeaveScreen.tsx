@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Pressable, TextInput } from "react-native";
+import { View, StyleSheet, Pressable, TextInput, Platform, Modal, FlatList } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
@@ -12,10 +13,17 @@ type TabType = "request" | "history";
 export default function LeaveScreen() {
   const { theme, isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>("request");
-  const [startDate, setStartDate] = useState("27/11/2023");
-  const [endDate, setEndDate] = useState("30/11/2023");
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
   const [leaveType, setLeaveType] = useState("Annual Leave");
   const [reason, setReason] = useState("");
+
+  // Date picker state
+  const [showPicker, setShowPicker] = useState(false);
+  const [currentDateType, setCurrentDateType] = useState<"start" | "end">("start");
+
+  // Leave Type Modal State
+  const [showLeaveTypeModal, setShowLeaveTypeModal] = useState(false);
 
   const colors = isDark ? Colors.dark : Colors.light;
 
@@ -26,7 +34,28 @@ export default function LeaveScreen() {
     status: "Full Time",
     availableLeave: 12,
     usedLeave: 8,
+    gender: "Male" as "Male" | "Female", // Added gender
   };
+
+  const getLeaveTypes = () => {
+    const types = [
+      "Annual Leave",
+      "Sick Leave",
+      "Compensation Leave",
+      "Unpaid Leave",
+      "Religion Leave",
+    ];
+
+    if (userInfo.gender === "Female") {
+      types.push("Maternity Leave"); // Standard term for Wanita (Maternity)
+    } else {
+      types.push("Paternity Leave"); // Standard term for Pria (Paternity)
+    }
+
+    return types;
+  };
+
+  const leaveTypes = getLeaveTypes();
 
   const handleSubmit = () => {
     console.log("Leave request submitted:", {
@@ -35,6 +64,28 @@ export default function LeaveScreen() {
       leaveType,
       reason,
     });
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-GB"); // DD/MM/YYYY format
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || (currentDateType === "start" ? startDate : endDate);
+    if (Platform.OS === "android") {
+      setShowPicker(false);
+    }
+
+    if (currentDateType === "start") {
+      setStartDate(currentDate);
+    } else {
+      setEndDate(currentDate);
+    }
+  };
+
+  const showDatepicker = (type: "start" | "end") => {
+    setCurrentDateType(type);
+    setShowPicker(true);
   };
 
   return (
@@ -146,30 +197,87 @@ export default function LeaveScreen() {
             Duration
           </ThemedText>
           <View style={styles.dateRow}>
-            <View style={[styles.dateInput, { backgroundColor: theme.backgroundDefault, borderColor: colors.border }]}>
+            <Pressable
+              style={[styles.dateInput, { backgroundColor: theme.backgroundDefault, borderColor: colors.border }]}
+              onPress={() => showDatepicker("start")}
+            >
               <Feather name="calendar" size={16} color={colors.textSecondary} />
               <ThemedText type="body" style={{ marginLeft: Spacing.sm }}>
-                {startDate}
+                {formatDate(startDate)}
               </ThemedText>
-            </View>
+            </Pressable>
             <ThemedText type="body" style={{ color: colors.textSecondary }}>
               to
             </ThemedText>
-            <View style={[styles.dateInput, { backgroundColor: theme.backgroundDefault, borderColor: colors.border }]}>
+            <Pressable
+              style={[styles.dateInput, { backgroundColor: theme.backgroundDefault, borderColor: colors.border }]}
+              onPress={() => showDatepicker("end")}
+            >
               <Feather name="calendar" size={16} color={colors.textSecondary} />
               <ThemedText type="body" style={{ marginLeft: Spacing.sm }}>
-                {endDate}
+                {formatDate(endDate)}
               </ThemedText>
-            </View>
+            </Pressable>
           </View>
+
+          {showPicker && (
+            <DateTimePicker
+              testID="dateTimePicker"
+              value={currentDateType === "start" ? startDate : endDate}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+            />
+          )}
 
           <ThemedText type="small" style={styles.formLabel}>
             Types of leave
           </ThemedText>
-          <View style={[styles.selectInput, { backgroundColor: theme.backgroundDefault, borderColor: colors.border }]}>
+          <Pressable
+            style={[styles.selectInput, { backgroundColor: theme.backgroundDefault, borderColor: colors.border }]}
+            onPress={() => setShowLeaveTypeModal(true)}
+          >
             <ThemedText type="body">{leaveType}</ThemedText>
             <Feather name="chevron-down" size={20} color={colors.textSecondary} />
-          </View>
+          </Pressable>
+
+          <Modal
+            visible={showLeaveTypeModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowLeaveTypeModal(false)}
+          >
+            <Pressable
+              style={styles.modalOverlay}
+              onPress={() => setShowLeaveTypeModal(false)}
+            >
+              <View style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}>
+                <ThemedText type="h2" style={{ marginBottom: Spacing.md, textAlign: "center" }}>
+                  Select Leave Type
+                </ThemedText>
+                <FlatList
+                  data={leaveTypes}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={styles.modalItem}
+                      onPress={() => {
+                        setLeaveType(item);
+                        setShowLeaveTypeModal(false);
+                      }}
+                    >
+                      <ThemedText type="body" style={{ color: theme.text }}>
+                        {item}
+                      </ThemedText>
+                      {leaveType === item && (
+                        <Feather name="check" size={20} color={colors.primary} />
+                      )}
+                    </Pressable>
+                  )}
+                />
+              </View>
+            </Pressable>
+          </Modal>
 
           <ThemedText type="small" style={styles.formLabel}>
             Reason (Optional)
@@ -357,5 +465,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    width: "100%",
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    maxHeight: "60%",
+  },
+  modalItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "#cccccc50", // Light border
   },
 });
