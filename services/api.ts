@@ -233,11 +233,14 @@ export const profileApi = {
 };
 
 export const attendanceApi = {
-  getHistory: async (): Promise<AttendanceResponse[]> => {
+  getHistory: async (start?: string, end?: string): Promise<AttendanceResponse[]> => {
     try {
-      const { start, end } = getMonthRange();
+      const range = getMonthRange();
+      const startDate = start || range.start;
+      const endDate = end || range.end;
+
       return await apiRequest<AttendanceResponse[]>(
-        `/attendance/list?start=${start}&end=${end}`
+        `/attendance/list?start=${startDate}&end=${endDate}`
       );
     } catch (error) {
       console.error("Error get list attendance:", error);

@@ -15,18 +15,25 @@ export default function HistoryScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [history, setHistory] = useState<AttendanceResponse[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [attendedDates, setAttendedDates] = useState<Set<number>>(new Set());
+  const [attendedDates, setAttendedDates] = useState<Set<string>>(new Set());
 
   const colors = isDark ? Colors.dark : Colors.light;
 
-  const loadData = async () => {
+  const loadData = async (date: Date) => {
     try {
-      const historyRes = await attendanceApi.getHistory();
+      // Calculate start and end of the selected month
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const start = new Date(year, month, 1).toISOString().split('T')[0];
+      const end = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+      const historyRes = await attendanceApi.getHistory(start, end);
       setHistory(historyRes);
+
       const dates = new Set(
         historyRes
           .filter((r) => r.checkInTime)
-          .map((r) => new Date(r.date).getDate())
+          .map((r) => r.date) // Store full date string "YYYY-MM-DD"
       );
       setAttendedDates(dates);
     } catch (error) {
@@ -36,13 +43,13 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [])
+      loadData(currentDate);
+    }, [currentDate])
   );
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadData();
+    await loadData(currentDate);
     setIsRefreshing(false);
   };
 
@@ -128,7 +135,14 @@ export default function HistoryScreen() {
         <View style={styles.daysGrid}>
           {getDaysInMonth().map((day, index) => {
             const isToday = isCurrentMonth && day === today;
-            const isAttended = day ? attendedDates.has(day) : false;
+
+            // Format day as YYYY-MM-DD for matching
+            const year = currentDate.getFullYear();
+            const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
+            const dayStr = day ? day.toString().padStart(2, "0") : "00";
+            const dateStr = `${year}-${month}-${dayStr}`;
+
+            const isAttended = day ? attendedDates.has(dateStr) : false;
 
             return (
               <View key={index} style={styles.dayCell}>
