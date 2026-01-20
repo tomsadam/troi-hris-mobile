@@ -45,6 +45,30 @@ export default function CameraScreen() {
 
   const clockType = route.params?.type || "clockIn";
 
+  useEffect(() => {
+    const checkAttendanceStatus = async () => {
+      try {
+        const status = await attendanceApi.getTodayStatus();
+        if (status?.checkInTime && status?.checkOutTime) {
+          Alert.alert(
+            "Attendance Complete",
+            "Anda sudah melakukan Clock In dan Clock Out hari ini.",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
+        }
+      } catch (error) {
+        console.error("Failed to check attendance status:", error);
+      }
+    };
+
+    checkAttendanceStatus();
+  }, []);
+
 
 
   const handleCapture = async () => {

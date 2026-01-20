@@ -51,7 +51,6 @@ export default function SettingsScreen() {
 
   const settingsItems = [
     { icon: "user", label: "Edit Profile", onPress: () => Alert.alert("Coming Soon", "Edit profile feature is coming soon.") },
-    { icon: "bell", label: "Notifications", onPress: () => Alert.alert("Coming Soon", "Notification settings coming soon.") },
     { icon: "lock", label: "Privacy & Security", onPress: () => Alert.alert("Coming Soon", "Privacy settings coming soon.") },
     { icon: "help-circle", label: "Help & Support", onPress: () => Alert.alert("Coming Soon", "Help & Support coming soon.") },
     { icon: "info", label: "About", onPress: () => Alert.alert("Attendance App", "Version 1.0.0\nBuilt with Expo") },
