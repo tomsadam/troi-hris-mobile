@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,6 +49,9 @@ export default function CameraScreen() {
 
   const handleCapture = async () => {
     if (isProcessing) return;
+
+    // Trigger Haptic Feedback
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     setIsProcessing(true);
     setVerificationState("verifying");

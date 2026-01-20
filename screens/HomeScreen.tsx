@@ -8,6 +8,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { attendanceApi, AttendanceResponse, AttendanceStats } from "@/services/api";
+import * as ExpoLocation from "expo-location";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { HomeStackParamList } from "@/navigation/HomeStackNavigator";
 
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const [todayStatus, setTodayStatus] = useState<AttendanceResponse>();
   const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [recentHistory, setRecentHistory] = useState<AttendanceResponse[]>([]);
+  const [locationName, setLocationName] = useState("Menemukan lokasi...");
 
   const colors = isDark ? Colors.dark : Colors.light;
 
@@ -42,8 +44,41 @@ export default function HomeScreen() {
     return now.toLocaleDateString("en-US", options);
   };
 
+  const getLocation = async () => {
+    try {
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationName("Izin Lokasi Ditolak");
+        return;
+      }
+
+      const location = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
+      const address = await ExpoLocation.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+
+      if (address && address.length > 0) {
+        const { city, region, country } = address[0];
+        // Fallback jika salah satu data undefined
+        const cityName = city || region || "";
+        const countryName = country || "Indonesia";
+        setLocationName(`${cityName}, ${countryName}`);
+      } else {
+        setLocationName("Lokasi tidak dikenali");
+      }
+
+    } catch (error) {
+      console.error("Error getting location:", error);
+      setLocationName("Gagal memuat lokasi");
+    }
+  };
+
   const loadData = async () => {
     try {
+      // Panggil location secara paralel agar tidak blocking lama
+      getLocation();
+
       const [statusRes, statsRes, historyRes] = await Promise.all([
         attendanceApi.getTodayStatus(),
         attendanceApi.getStats(),
@@ -111,7 +146,7 @@ export default function HomeScreen() {
         <View style={[styles.locationBadge, { backgroundColor: colors.primary }]}>
           <Feather name="map-pin" size={12} color="#FFFFFF" />
           <ThemedText type="small" style={styles.locationText}>
-            West Jakarta, Indonesia
+            {locationName}
           </ThemedText>
         </View>
       </View>
