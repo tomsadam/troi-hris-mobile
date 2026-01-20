@@ -9,6 +9,7 @@ import { getCommonScreenOptions } from "@/navigation/screenOptions";
 export type HomeStackParamList = {
   Home: undefined;
   History: undefined;
+  CompanyHolidays: undefined;
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -34,6 +35,12 @@ export default function HomeStackNavigator() {
         component={HistoryScreen}
         options={{ headerTitle: "Attendance History" }}
       />
+      <Stack.Screen
+        name="CompanyHolidays"
+        component={require("@/screens/CompanyHolidaysScreen").default}
+        options={{ headerTitle: "Company Holidays" }}
+      />
     </Stack.Navigator>
   );
 }
+

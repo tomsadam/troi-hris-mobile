@@ -11,6 +11,7 @@ import { attendanceApi, AttendanceResponse, AttendanceStats } from "@/services/a
 import * as ExpoLocation from "expo-location";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { HomeStackParamList } from "@/navigation/HomeStackNavigator";
+import { getUpcomingHolidays } from "@/constants/holidays";
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, "Home">;
 
@@ -232,7 +233,48 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={styles.historyHeader}>
+      <View style={styles.sectionHeader}>
+        <Pressable
+          onPress={() => navigation.navigate("CompanyHolidays")}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+        >
+          <Feather name="gift" size={20} color={colors.primary} />
+          <ThemedText type="h4" style={{ color: colors.primary }}>Holidays</ThemedText>
+          <Feather name="chevron-right" size={20} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      <View style={styles.holidaysList}>
+        {getUpcomingHolidays(3).map((holiday, index) => {
+          const date = new Date(holiday.date);
+          const dateString = date.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          });
+
+          return (
+            <View key={holiday.id}>
+              <Pressable
+                style={[styles.holidayCard, { backgroundColor: theme.backgroundDefault }]}
+                onPress={() => navigation.navigate("CompanyHolidays")}
+              >
+                <View style={[styles.holidayIcon, { backgroundColor: theme.backgroundRoot }]}>
+                  <Feather name="gift" size={20} color={colors.primary} />
+                  {/* Using gift icon as placeholder for confetti/streamer icon shown in image if not available */}
+                </View>
+                <View style={styles.holidayContent}>
+                  <ThemedText type="body" style={{ fontWeight: '600' }}>{holiday.name}</ThemedText>
+                  <ThemedText type="small" style={{ color: colors.textSecondary }}>{dateString}</ThemedText>
+                </View>
+              </Pressable>
+              {index < 2 && <View style={[styles.separator, { backgroundColor: theme.backgroundRoot }]} />}
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={[styles.historyHeader, { marginTop: Spacing.xl }]}>
         <ThemedText type="h4">Attendance History</ThemedText>
         <Pressable onPress={() => navigation.navigate("History")}>
           <ThemedText type="small" style={{ color: colors.primary }}>
@@ -441,5 +483,35 @@ const styles = StyleSheet.create({
   historyLocation: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  sectionHeader: {
+    marginBottom: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  holidaysList: {
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+  },
+  holidayCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  holidayIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  holidayContent: {
+    flex: 1,
+  },
+  separator: {
+    height: 1,
+    width: "100%",
   },
 });

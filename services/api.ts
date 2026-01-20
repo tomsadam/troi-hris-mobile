@@ -1,7 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-
+import { Client } from "../types/client";
+import { ClientSite } from "../types/client-site";
+import { JobPosition } from "../types/job-position";
+import { Role } from "../types/role";
+import { User, UserCreate } from "../types/user";
+import { Employee, EmployeeFormDto, EmployeeSearchParams, OnboardEmployeeRequest } from "../types/employee";
+import { JobReference } from "../types/job-reference";
+import { CreateShiftMasterRequest, ShiftMasterDTO } from "../types/shift-master";
+import { ShiftPattern, CreatePatternRequest, BulkPatternItemsRequest } from "../types/shift-pattern";
+import { RosterResponse } from "../types/roster";
+import { PageResponse } from "../types/common";
 
 // --- KONFIGURASI HOST ---
 // Mengambil IP Host dari Expo Go (untuk development)
@@ -64,6 +74,34 @@ export interface UserResponseDTO {
   role: RoleResponseDTO;
 }
 
+export interface LocalDate {
+  year: number;
+  month: number;
+  day: number;
+}
+
+export interface BigDecimal {
+  value: number;
+}
+
+export type EmploymentType = 'PKWT' | 'PKWTT' | 'FREELANCE';
+
+
+export interface PlacementDTO {
+  id: string;
+  client: Client;
+  clientSite: ClientSite;
+  jobPosition: JobPosition;
+  jobTitle: string;
+  employeeIdAtClient: string;
+  employmentType: EmploymentType;
+  startDate: LocalDate;
+  endDate: LocalDate;
+  basicSalary: BigDecimal;
+  isActive: boolean;
+
+}
+
 export interface EmployeeResponseDTO {
   id: string;
   fullName: string;
@@ -74,9 +112,8 @@ export interface EmployeeResponseDTO {
 export interface ProfileDetailResponseDTO {
   user: UserResponseDTO;
   employee: EmployeeResponseDTO;
+  placement: PlacementDTO;
 }
-
-// Interface AttendanceData dihapus karena kita menggunakan FormData langsung
 
 export interface AttendanceStats {
   employeeName: string;
@@ -144,9 +181,13 @@ const apiRequest = async <T>(
     headers,
   });
 
-  // UBAH BAGIAN INI: Panggil handleResponseError jika tidak OK
   if (!response.ok) {
     await handleResponseError(response);
+  }
+
+  // Handle empty responses (e.g. 204 No Content for DELETE)
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return {} as T;
   }
 
   return response.json();
@@ -170,7 +211,6 @@ const apiRequestMultipart = async <T>(
     headers,
   });
 
-  // UBAH BAGIAN INI: Panggil handleResponseError jika tidak OK
   if (!response.ok) {
     await handleResponseError(response);
   }

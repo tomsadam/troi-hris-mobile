@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable, Alert, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Pressable, Alert, ActivityIndicator, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from 'expo-image-picker';
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { profileApi, ProfileDetailResponseDTO } from "@/services/api";
+import { profileApi, ProfileDetailResponseDTO, PlacementDTO } from "@/services/api";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 
 export default function SettingsScreen() {
@@ -14,6 +15,7 @@ export default function SettingsScreen() {
   const { logout, user } = useAuth();
   const [profile, setProfile] = useState<ProfileDetailResponseDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [image, setImage] = useState<string | null>(null);
 
   const colors = isDark ? Colors.dark : Colors.light;
 
@@ -29,6 +31,22 @@ export default function SettingsScreen() {
       console.error("Failed to load profile:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    console.log(result);
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
     }
   };
 
@@ -67,9 +85,18 @@ export default function SettingsScreen() {
   return (
     <ScreenScrollView>
       <View style={[styles.profileCard, { backgroundColor: theme.backgroundDefault }]}>
-        <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-          <Feather name="user" size={40} color={colors.primary} />
-        </View>
+        <Pressable onPress={pickImage} style={({ pressed }) => [{ position: 'relative' }, pressed && { opacity: 0.7 }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primaryLight, overflow: "hidden" }]}>
+            {image ? (
+              <Image source={{ uri: image }} style={{ width: '100%', height: '100%' }} />
+            ) : (
+              <Feather name="user" size={40} color={colors.primary} />
+            )}
+          </View>
+          <View style={[styles.editIconBadge, { backgroundColor: colors.primary }]}>
+            <Feather name="edit-2" size={12} color="#FFFFFF" />
+          </View>
+        </Pressable>
         <ThemedText type="h3" style={styles.profileName}>
           {profile?.employee.fullName || user?.name || "User"}
         </ThemedText>
@@ -89,7 +116,7 @@ export default function SettingsScreen() {
               Employee ID
             </ThemedText>
             <ThemedText type="body" style={{ fontWeight: "500" }}>
-              {profile?.employee.employeeNumber || "-"}
+              {profile?.placement?.employeeIdAtClient || "-"}
             </ThemedText>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -107,7 +134,7 @@ export default function SettingsScreen() {
               Status
             </ThemedText>
             <ThemedText type="body" style={{ fontWeight: "500" }}>
-              {profile?.employee.active || "-"}
+              {profile?.employee.active ? "Active" : "Inactive"}
             </ThemedText>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -184,6 +211,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.md,
+  },
+  editIconBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   profileName: {
     marginBottom: Spacing.xs,
