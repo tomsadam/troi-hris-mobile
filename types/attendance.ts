@@ -12,5 +12,7 @@ export interface AttendanceResponse {
     checkOutLongitude: string;
     status: string;
     location: string;
+    checkInPhotoUrl: string;
+    checkOutPhotoUrl: string;
     totalHours: number;
 }

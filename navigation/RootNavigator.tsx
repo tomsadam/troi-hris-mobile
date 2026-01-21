@@ -8,10 +8,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { ActivityIndicator, View } from "react-native";
 import { Colors } from "@/constants/theme";
 
+import EditProfileScreen from "@/screens/EditProfileScreen";
+import { Employee } from "@/types/employee";
+
 export type RootStackParamList = {
   Login: undefined;
   Main: undefined;
   Camera: { type: "clockIn" | "clockOut" };
+  EditProfile: { employee: Employee };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -45,6 +49,13 @@ export default function RootNavigator() {
             options={{
               presentation: "fullScreenModal",
               animation: "slide_from_bottom",
+            }}
+          />
+          <Stack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
+            options={{
+              animation: "slide_from_right",
             }}
           />
         </>

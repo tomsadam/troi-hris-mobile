@@ -151,7 +151,9 @@ export default function CameraScreen() {
       if (response.status === "VERIFIED") {
         setVerificationState("success");
 
-        const timeWIB = formatTime(response.checkInTime);
+        const timeWIB = formatTime(
+          clockType === "clockIn" ? response.checkInTime : response.checkOutTime
+        );
 
         Alert.alert(
           clockType === "clockIn" ? "Clocked In" : "Clocked Out",

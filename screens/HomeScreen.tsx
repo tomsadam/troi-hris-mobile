@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, Pressable, RefreshControl, Alert } from "react-native";
+import { View, StyleSheet, Pressable, RefreshControl, Alert, Modal, Image, ScrollView, Dimensions } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -24,6 +24,11 @@ export default function HomeScreen() {
   const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [recentHistory, setRecentHistory] = useState<AttendanceResponse[]>([]);
   const [locationName, setLocationName] = useState("Menemukan lokasi...");
+
+  // Photo Modal State
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [photoTitle, setPhotoTitle] = useState("");
 
   const colors = isDark ? Colors.dark : Colors.light;
 
@@ -85,6 +90,9 @@ export default function HomeScreen() {
         attendanceApi.getStats(),
         attendanceApi.getHistory(),
       ]);
+
+      console.log("DEBUG: todayStatus response:", JSON.stringify(statusRes, null, 2)); // <--- LOG INI
+
       setTodayStatus(statusRes);
       setStats(statsRes);
       setRecentHistory(historyRes.slice(0, 3));
@@ -111,6 +119,21 @@ export default function HomeScreen() {
       day: date.getDate(),
       weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
     };
+  };
+
+  const handleViewPhoto = (type: "checkIn" | "checkOut") => {
+    if (!todayStatus) return;
+
+    // Ambil URL foto dari respon API
+    const photoUrl = type === "checkIn" ? todayStatus.checkInPhotoUrl : todayStatus.checkOutPhotoUrl;
+
+    if (photoUrl) {
+      setSelectedPhoto(photoUrl);
+      setPhotoTitle(type === "checkIn" ? "Foto Clock In" : "Foto Clock Out");
+      setPhotoModalVisible(true);
+    } else {
+      Alert.alert("Info", `Belum ada foto ${type === "checkIn" ? "masuk" : "keluar"} yang tersimpan.`);
+    }
   };
 
   return (
@@ -153,7 +176,10 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.statusRow}>
-        <View style={[styles.statusCard, { backgroundColor: theme.backgroundDefault }]}>
+        <Pressable
+          style={[styles.statusCard, { backgroundColor: theme.backgroundDefault }]}
+          onPress={() => handleViewPhoto("checkIn")}
+        >
           <View style={styles.statusHeader}>
             <View style={[styles.statusIcon, { backgroundColor: colors.primaryLight }]}>
               <Feather name="log-in" size={16} color={colors.primary} />
@@ -170,9 +196,12 @@ export default function HomeScreen() {
           <ThemedText type="h2" style={[styles.statusTime, { color: colors.primary }]}>
             {formatTime(todayStatus?.checkInTime) || "--:--"}
           </ThemedText>
-        </View>
+        </Pressable>
 
-        <View style={[styles.statusCard, { backgroundColor: theme.backgroundDefault }]}>
+        <Pressable
+          style={[styles.statusCard, { backgroundColor: theme.backgroundDefault }]}
+          onPress={() => handleViewPhoto("checkOut")}
+        >
           <View style={styles.statusHeader}>
             <View style={[styles.statusIcon, { backgroundColor: colors.primaryLight }]}>
               <Feather name="log-out" size={16} color={colors.primary} />
@@ -192,7 +221,7 @@ export default function HomeScreen() {
           >
             {formatTime(todayStatus?.checkOutTime) || "--:--"}
           </ThemedText>
-        </View>
+        </Pressable>
       </View>
 
       <View style={styles.statsRow}>
@@ -340,6 +369,42 @@ export default function HomeScreen() {
       })}
 
       <View style={{ height: Spacing["3xl"] }} />
+
+      {/* MODAL PHOTO VIEWER */}
+      <Modal
+        visible={photoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPhotoModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="h4">{photoTitle}</ThemedText>
+              <Pressable onPress={() => setPhotoModalVisible(false)} style={styles.closeButton}>
+                <Feather name="x" size={24} color={theme.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.imageContainer}>
+              {selectedPhoto ? (
+                <Image
+                  source={{ uri: selectedPhoto }}
+                  style={styles.evidenceImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={[styles.noImagePlaceholder, { backgroundColor: theme.backgroundRoot }]}>
+                  <Feather name="image" size={48} color={colors.textSecondary} />
+                  <ThemedText type="body" style={{ color: colors.textSecondary, marginTop: Spacing.sm }}>
+                    Tidak ada gambar
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenScrollView>
   );
 }
@@ -513,5 +578,51 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     width: "100%",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+  },
+  closeButton: {
+    padding: Spacing.xs,
+  },
+  imageContainer: {
+    width: "100%",
+    aspectRatio: 3 / 4, // Rasio foto portrait umum
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+    backgroundColor: "#f0f0f0",
+  },
+  evidenceImage: {
+    width: "100%",
+    height: "100%",
+  },
+  noImagePlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -10,7 +10,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { profileApi, ProfileDetailResponseDTO, PlacementDTO } from "@/services/api";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "@/navigation/RootNavigator";
+
 export default function SettingsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark } = useTheme();
   const { logout, user } = useAuth();
   const [profile, setProfile] = useState<ProfileDetailResponseDTO | null>(null);
@@ -68,7 +73,18 @@ export default function SettingsScreen() {
   };
 
   const settingsItems = [
-    { icon: "user", label: "Edit Profile", onPress: () => Alert.alert("Coming Soon", "Edit profile feature is coming soon.") },
+    {
+      icon: "user",
+      label: "Edit Profile",
+      onPress: () => {
+        if (profile?.employee) {
+          // @ts-ignore - navigation type inference might be tricky here depending on where useNavigation is from
+          navigation.navigate("EditProfile", { employee: profile.employee });
+        } else {
+          Alert.alert("Error", "Profile data not loaded yet.");
+        }
+      }
+    },
     { icon: "lock", label: "Privacy & Security", onPress: () => Alert.alert("Coming Soon", "Privacy settings coming soon.") },
     { icon: "help-circle", label: "Help & Support", onPress: () => Alert.alert("Coming Soon", "Help & Support coming soon.") },
     { icon: "info", label: "About", onPress: () => Alert.alert("Attendance App", "Version 1.0.0\nBuilt with Expo") },

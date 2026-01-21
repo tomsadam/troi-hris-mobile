@@ -102,16 +102,9 @@ export interface PlacementDTO {
 
 }
 
-export interface EmployeeResponseDTO {
-  id: string;
-  fullName: string;
-  employeeNumber: string;
-  active: boolean;
-}
-
 export interface ProfileDetailResponseDTO {
   user: UserResponseDTO;
-  employee: EmployeeResponseDTO;
+  employee: Employee;
   placement: PlacementDTO;
 }
 
@@ -136,6 +129,8 @@ export interface AttendanceResponse {
   checkOutLongitude: string;
   status: string;
   location: string;
+  checkInPhotoUrl: string;
+  checkOutPhotoUrl: string;
   totalHours: number;
 }
 
