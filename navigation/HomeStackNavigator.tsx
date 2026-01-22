@@ -5,6 +5,8 @@ import HistoryScreen from "@/screens/HistoryScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
+import CompanyHolidaysScreen from "@/screens/CompanyHolidaysScreen";
+
 
 export type HomeStackParamList = {
   Home: undefined;

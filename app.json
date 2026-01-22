@@ -28,11 +28,9 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.attendance.app",
       "permissions": [
-        "CAMERA",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -59,7 +57,8 @@
           "cameraPermission": "Allow Attendance to access your camera for facial recognition during clock in/out."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ],
     "experiments": {
       "reactCompiler": true
